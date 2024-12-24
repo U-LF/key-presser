@@ -9,83 +9,8 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
-
-struct Macro {
-    std::string name;
-    std::vector<WORD> keys;
-    int delay;
-};
-
-// Function to simulate a key press
-void PressKey(WORD key) {
-    INPUT input = { 0 };
-    input.type = INPUT_KEYBOARD;
-    input.ki.wVk = key;
-
-    // Simulate key press
-    SendInput(1, &input, sizeof(INPUT));
-
-    // Simulate key release
-    input.ki.dwFlags = KEYEVENTF_KEYUP;
-    SendInput(1, &input, sizeof(INPUT));
-}
-
-// Function to simulate multiple key presses at once
-void PressMultipleKeys(const std::vector<WORD>& keys) {
-    std::vector<INPUT> inputs(keys.size());
-    for (size_t i = 0; i < keys.size(); ++i) {
-        inputs[i].type = INPUT_KEYBOARD;
-        inputs[i].ki.wVk = keys[i];
-    }
-
-    // Simulate key press for all keys
-    SendInput(static_cast<UINT>(keys.size()), inputs.data(), sizeof(INPUT));
-
-    // Simulate key release for all keys
-    for (size_t i = 0; i < keys.size(); ++i) {
-        inputs[i].ki.dwFlags = KEYEVENTF_KEYUP;
-    }
-    SendInput(static_cast<UINT>(keys.size()), inputs.data(), sizeof(INPUT));
-}
-
-// Function to save macro to a file
-void SaveMacro(const Macro& macro) {
-    std::ofstream file("macros.txt", std::ios::app);
-    if (file.is_open()) {
-        file << macro.name << "\n";
-        file << macro.delay << "\n";
-        for (WORD key : macro.keys) {
-            file << key << " ";
-        }
-        file << "\n";
-    }
-}
-
-// Function to load macros from the file
-std::vector<Macro> LoadMacros() {
-    std::vector<Macro> macros;
-    std::ifstream file("macros.txt");
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            Macro macro;
-            macro.name = line;
-
-            std::getline(file, line);
-            std::stringstream(line) >> macro.delay;
-
-            std::getline(file, line);
-            std::stringstream ss(line);
-            WORD key;
-            while (ss >> key) {
-                macro.keys.push_back(key);
-            }
-
-            macros.push_back(macro);
-        }
-    }
-    return macros;
-}
+#include "keySimulatorFunctions.h"
+#include "MacroManager.h"
 
 int main() {
     // Initialize GLFW
@@ -166,7 +91,7 @@ int main() {
 
         // Adjust the scaling based on the window size
         ImVec2 windowSize = ImGui::GetIO().DisplaySize;
-        float scaleFactor = windowSize.x / 800.0f; // Base window width is 800
+        float scaleFactor = windowSize.x / 800.0f;
         ImGui::GetIO().FontGlobalScale = scaleFactor;
 
         // Center the window's content
