@@ -1,15 +1,4 @@
-﻿#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include <windows.h>
-#include <iostream>
-#include <thread>
-#include <vector>
-#include <random>
-#include <fstream>
-#include <sstream>
+﻿#include "Libraries.h"
 #include "keySimulatorFunctions.h"
 #include "MacroManager.h"
 
@@ -100,6 +89,9 @@ int main() {
 
     std::thread keyThread;
 
+    std::mutex stopMutex;
+    std::condition_variable stopCondition;
+
     auto simulateKeys = [&]() {
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -114,7 +106,10 @@ int main() {
                 currentDelay = delay * (randomPercentage / 100.0f) * 1000;
             }
 
-            Sleep(currentDelay);
+            std::unique_lock<std::mutex> lock(stopMutex);
+            if (stopCondition.wait_for(lock, std::chrono::milliseconds(currentDelay), [&]() { return !running; })) {
+                break;
+            }
         }
         };
 
@@ -217,7 +212,11 @@ int main() {
         }
         else {
             if (ImGui::Button("Stop Macro")) {
-                running = false;
+                {
+                    std::lock_guard<std::mutex> lock(stopMutex);
+                    running = false;
+                }
+                stopCondition.notify_all(); // Notify the thread to stop
                 if (keyThread.joinable()) keyThread.join();
             }
         }
@@ -239,6 +238,11 @@ int main() {
     // Cleanup
     running = false;
     if (keyThread.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(stopMutex);
+            running = false;
+        }
+        stopCondition.notify_all();
         keyThread.join();
     }
 
